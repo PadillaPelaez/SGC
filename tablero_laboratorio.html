@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuadro de Mando — Laboratorio Clínico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #F7F6F2;
+  --surface: #FFFFFF;
+  --surface2: #F0EFE9;
+  --border: rgba(0,0,0,0.08);
+  --border-md: rgba(0,0,0,0.14);
+  --text: #1A1916;
+  --text-2: #6B6A66;
+  --text-3: #9E9D99;
+  --ok: #2D6A2D;
+  --ok-bg: #EBF5EB;
+  --ok-mid: #4A9E4A;
+  --warn: #7A4F00;
+  --warn-bg: #FFF4E0;
+  --warn-mid: #C47F00;
+  --bad: #8B1F1F;
+  --bad-bg: #FDEAEA;
+  --bad-mid: #D94040;
+  --none: #5A5955;
+  --none-bg: #EFEFEB;
+  --none-mid: #888780;
+  --accent: #1A1916;
+  --r: 10px;
+  --r-lg: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* LAYOUT */
+.shell { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+/* HEADER */
+.hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+.hdr-left h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; }
+.hdr-left p { font-size: 12px; color: var(--text-3); margin-top: 3px; font-family: 'DM Mono', monospace; }
+.hdr-right { display: flex; gap: 8px; align-items: center; }
+.period-badge { font-size: 11px; font-family: 'DM Mono', monospace; background: var(--surface); border: 0.5px solid var(--border-md); border-radius: 20px; padding: 5px 14px; color: var(--text-2); }
+
+/* BREADCRUMB */
+.breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; }
+.bc-item { font-size: 12px; color: var(--text-3); cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: background .15s; }
+.bc-item:hover { background: var(--surface2); color: var(--text); }
+.bc-item.active { color: var(--text); font-weight: 500; }
+.bc-sep { color: var(--text-3); font-size: 11px; }
+.bc-item.clickable { color: var(--text-2); }
+
+/* SCREENS */
+.screen { display: none; animation: fadeIn .2s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* KPI ROW */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 28px; }
+.kpi { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r); padding: 16px; }
+.kpi-lbl { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; letter-spacing: .03em; margin-bottom: 6px; }
+.kpi-val { font-size: 26px; font-weight: 300; letter-spacing: -0.5px; }
+.kpi-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* CATEGORY GRID */
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; }
+
+.cat-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  cursor: pointer;
+  transition: border-color .15s, transform .12s;
+  position: relative;
+  overflow: hidden;
+}
+.cat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.cat-card.ok::before { background: var(--ok-mid); }
+.cat-card.warn::before { background: var(--warn-mid); }
+.cat-card.bad::before { background: var(--bad-mid); }
+.cat-card.none::before { background: var(--none-mid); }
+.cat-card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+
+.cat-icon-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cat-icon { font-size: 20px; color: var(--text-3); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-ok { background: var(--ok-mid); }
+.dot-warn { background: var(--warn-mid); }
+.dot-bad { background: var(--bad-mid); }
+.dot-none { background: var(--none-mid); }
+
+.cat-name { font-size: 13px; font-weight: 500; margin-bottom: 12px; }
+.cat-counts { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; }
+.pill { font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 20px; font-weight: 400; }
+.pill-ok { background: var(--ok-bg); color: var(--ok); }
+.pill-warn { background: var(--warn-bg); color: var(--warn); }
+.pill-bad { background: var(--bad-bg); color: var(--bad); }
+.pill-none { background: var(--none-bg); color: var(--none); }
+
+.cat-progress { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.cat-progress-fill { height: 100%; border-radius: 2px; }
+
+.cat-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.cat-n { font-size: 11px; color: var(--text-3); }
+.cat-arrow { font-size: 11px; color: var(--text-3); }
+
+/* SECTION HEADER */
+.section-hdr { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.back-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-2);
+  background: var(--surface); border: 0.5px solid var(--border-md);
+  border-radius: 20px; padding: 5px 14px; cursor: pointer;
+  transition: background .15s;
+}
+.back-btn:hover { background: var(--surface2); }
+.section-title { font-size: 18px; font-weight: 500; letter-spacing: -0.2px; }
+.section-badge { font-size: 10px; font-family: 'DM Mono', monospace; padding: 4px 10px; border-radius: 20px; }
+
+/* INDICATOR GRID */
+.ind-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.ind-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color .15s, transform .12s;
+  border-top: 2px solid transparent;
+}
+.ind-card.ok { border-top-color: var(--ok-mid); }
+.ind-card.warn { border-top-color: var(--warn-mid); }
+.ind-card.bad { border-top-color: var(--bad-mid); }
+.ind-card.none { border-top-color: var(--none-mid); }
+.ind-card:hover { border-color: var(--border-md); transform: translateY(-1px); }
+
+.ind-name { font-size: 12px; font-weight: 500; margin-bottom: 12px; line-height: 1.4; min-height: 34px; }
+.ind-data-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; }
+.ind-data-row + .ind-data-row { border-top: 0.5px solid var(--border); }
+.ind-lbl { font-size: 10px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+.ind-val { font-size: 12px; font-weight: 500; }
+.ind-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--border); }
+.trend { font-size: 12px; font-family: 'DM Mono', monospace; }
+.trend.up { color: var(--ok-mid); }
+.trend.dn { color: var(--bad-mid); }
+.trend.eq { color: var(--none-mid); }
+
+/* CHART PANEL */
+.chart-panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 20px; margin-bottom: 20px; }
+.chart-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-3); letter-spacing: .05em; margin-bottom: 14px; }
+.chart-wrap { position: relative; width: 100%; }
+
+/* DETAIL LEVEL */
+.detail-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.detail-kpi .kpi-val { font-size: 22px; }
+
+.obs-panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+.obs-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-3); letter-spacing: .05em; margin-bottom: 14px; }
+.obs-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+.obs-item:last-child { border-bottom: none; }
+.obs-marker { width: 4px; height: 4px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+
+.dim-section { margin-top: 16px; }
+.dim-row { margin-bottom: 10px; }
+.dim-hd { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+.dim-name-t { color: var(--text-2); }
+.dim-pct { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500; }
+.bar-bg { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.bar-fg { height: 4px; border-radius: 2px; transition: width .4s ease; }
+
+.legend-row { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+.legend-sq { width: 10px; height: 3px; border-radius: 1px; }
+
+.cat-recommend { background: var(--surface2); border-radius: var(--r); padding: 16px; }
+.rec-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-3); letter-spacing: .05em; margin-bottom: 12px; }
+.rec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 8px; }
+.rec-item { background: var(--surface); border: 0.5px dashed var(--border-md); border-radius: var(--r); padding: 10px 12px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.rec-item span { display: block; font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+/* FOOTER */
+.footer { margin-top: 40px; padding-top: 20px; border-top: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.footer-left { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+.iso-badge { font-size: 10px; font-family: 'DM Mono', monospace; background: var(--surface); border: 0.5px solid var(--border-md); border-radius: 20px; padding: 4px 12px; color: var(--text-2); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>Cuadro de mando</h1>
+      <p>Laboratorio de análisis clínicos · Sistema de gestión ISO 9001</p>
+    </div>
+    <div class="hdr-right">
+      <span class="period-badge" id="period-badge">Período activo</span>
+      <span class="iso-badge">ISO 9001</span>
+    </div>
+  </div>
+
+  <div class="breadcrumb">
+    <span class="bc-item active" id="bc1" onclick="goTo(1)">Resumen ejecutivo</span>
+    <span class="bc-sep" id="bcsep1">›</span>
+    <span class="bc-item clickable" id="bc2" style="display:none" onclick="goTo(2)"></span>
+    <span class="bc-sep" id="bcsep2" style="display:none">›</span>
+    <span class="bc-item active" id="bc3" style="display:none"></span>
+  </div>
+
+  <!-- ══════════════ NIVEL 1 ══════════════ -->
+  <div class="screen active" id="s1">
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-lbl">Total indicadores</div>
+        <div class="kpi-val">20</div>
+        <div class="kpi-sub">5 perspectivas estratégicas</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Cumplen</div>
+        <div class="kpi-val" id="kpi-ok" style="color:var(--ok-mid)">—</div>
+        <div class="kpi-sub">Al cargar todos los datos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">En riesgo</div>
+        <div class="kpi-val" id="kpi-warn" style="color:var(--warn-mid)">—</div>
+        <div class="kpi-sub">Al cargar todos los datos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Fuera de meta</div>
+        <div class="kpi-val" id="kpi-bad" style="color:var(--bad-mid)">1</div>
+        <div class="kpi-sub">Satisfacción del paciente</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:11px;color:var(--text-3);font-family:'DM Mono',monospace">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok-mid);margin-right:5px"></span>Cumple</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn-mid);margin-right:5px"></span>En riesgo</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad-mid);margin-right:5px"></span>Fuera de meta</span>
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--none-mid);margin-right:5px"></span>Sin datos</span>
+    </div>
+
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+
+  <!-- ══════════════ NIVEL 2 ══════════════ -->
+  <div class="screen" id="s2">
+    <div class="section-hdr">
+      <button class="back-btn" onclick="goTo(1)">← Resumen</button>
+      <span class="section-title" id="cat-title2"></span>
+      <span class="section-badge" id="cat-badge2"></span>
+    </div>
+    <div class="ind-grid" id="ind-grid"></div>
+    <div class="cat-recommend">
+      <div class="rec-label">Gráficos recomendados para esta categoría</div>
+      <div class="rec-grid" id="rec-grid"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ NIVEL 3 ══════════════ -->
+  <div class="screen" id="s3">
+    <div class="section-hdr">
+      <button class="back-btn" onclick="goTo(2)">← <span id="back-cat-lbl"></span></button>
+      <div>
+        <div class="section-title" id="ind-detail-name"></div>
+        <div style="font-size:12px;color:var(--text-3);margin-top:2px;font-family:'DM Mono',monospace" id="ind-detail-meta"></div>
+      </div>
+    </div>
+
+    <div class="detail-kpi">
+      <div class="kpi">
+        <div class="kpi-lbl">Meta</div>
+        <div class="kpi-val" id="d-meta"></div>
+        <div class="kpi-sub" id="d-crit"></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Último resultado</div>
+        <div class="kpi-val" id="d-ult"></div>
+        <div class="kpi-sub" id="d-est"></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Acumulado anual</div>
+        <div class="kpi-val" id="d-acum"></div>
+        <div class="kpi-sub" id="d-tend"></div>
+      </div>
+    </div>
+
+    <div class="chart-panel">
+      <div class="chart-label">EVOLUCIÓN TEMPORAL VS. META</div>
+      <div class="legend-row">
+        <span class="legend-item"><span class="legend-sq" style="background:#1A1916"></span>Resultado</span>
+        <span class="legend-item"><span class="legend-sq" style="background:#D94040;opacity:.6"></span>Meta</span>
+      </div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="detailChart" role="img" aria-label="Evolución temporal del indicador vs meta">Gráfico de evolución del indicador comparado con la meta.</canvas>
+      </div>
+    </div>
+
+    <div class="obs-panel">
+      <div class="obs-label">OBSERVACIONES Y ESTADO</div>
+      <div id="obs-list"></div>
+      <div id="dim-section" style="display:none">
+        <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text-3);letter-spacing:.05em;margin:16px 0 10px">DETALLE POR DIMENSIÓN</div>
+        <div id="dim-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left" id="footer-date"></div>
+    <div class="footer-left">Revisión por la dirección · Uso interno</div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════ DATOS ═══════════
+const DATA = {
+  clientes: {
+    name: 'Clientes', icon: '◎', status: 'bad',
+    counts: { ok:0, warn:1, bad:1, none:2 },
+    progress: 25,
+    rec: [
+      { icon:'▬', label:'Barras comparativas', sub:'Resultado vs. meta por indicador' },
+      { icon:'╌', label:'Línea temporal', sub:'Evolución mensual de todos los ind.' },
+      { icon:'◈', label:'Radar de dimensiones', sub:'Solo satisfacción del paciente' }
+    ],
+    indicators: [
+      {
+        name:'Satisfacción del paciente', meta:'95%', criterio:'Criterio ≥', frec:'Trimestral',
+        ultimo:'91,7%', acum:'92,2%', status:'bad', trend:'dn',
+        obs:[
+          {color:'var(--bad-mid)', text:'Dos períodos consecutivos por debajo de meta. Brecha de 3,3 pp en el último resultado.'},
+          {color:'var(--warn-mid)', text:'Dimensiones críticas: sala de espera (85,1%) y trámites de autorización (89,0%) con tendencia negativa.'},
+          {color:'var(--ok-mid)', text:'Única dimensión en meta: atención durante extracción (96,0%).'}
+        ],
+        dims:[
+          {name:'Atención durante extracción', pct:96.0, color:'var(--ok-mid)', trend:'▲', trendColor:'var(--ok-mid)'},
+          {name:'Claridad de resultados', pct:94.3, color:'var(--ok-mid)', trend:'▲', trendColor:'var(--ok-mid)'},
+          {name:'Tiempo de espera', pct:93.3, color:'var(--warn-mid)', trend:'▼', trendColor:'var(--bad-mid)'},
+          {name:'Atención recepción', pct:92.2, color:'var(--warn-mid)', trend:'▼', trendColor:'var(--bad-mid)'},
+          {name:'Trámites de autorización', pct:89.0, color:'var(--bad-mid)', trend:'▼', trendColor:'var(--bad-mid)'},
+          {name:'Comodidad sala de espera', pct:85.1, color:'var(--bad-mid)', trend:'▼', trendColor:'var(--bad-mid)'}
+        ],
+        chartLabels:['T4 2024','T1 2025','T2 2025','T3 2025','T4 2025','T1 2026'],
+        chartData:[null,null,null,null,92.6,91.7],
+        chartMeta:95
+      },
+      {
+        name:'Reclamos atendidos', meta:'100%', criterio:'Criterio ≥', frec:'Mensual',
+        ultimo:'—', acum:'—', status:'none', trend:'eq',
+        obs:[{color:'var(--none-mid)',text:'Sin datos disponibles. Requiere carga mensual urgente.'}],
+        dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:100
+      },
+      {
+        name:'Tiempo promedio de entrega', meta:'≤ 24 hs', criterio:'Criterio ≤', frec:'Mensual',
+        ultimo:'—', acum:'—', status:'none', trend:'eq',
+        obs:[{color:'var(--none-mid)',text:'Sin datos disponibles. Indicador clave de experiencia del paciente.'}],
+        dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null
+      },
+      {
+        name:'Entrega en plazo', meta:'98%', criterio:'Criterio ≥', frec:'Mensual',
+        ultimo:'—', acum:'—', status:'none', trend:'eq',
+        obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}],
+        dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:98
+      }
+    ]
+  },
+  calidad: {
+    name: 'Calidad técnica', icon: '⬡', status: 'none',
+    counts: { ok:0, warn:0, bad:0, none:4 },
+    progress: 0,
+    rec: [
+      { icon:'╌', label:'Levey-Jennings', sub:'Control interno y PEEC' },
+      { icon:'▬', label:'Barras mensuales', sub:'Muestras no conformes' },
+      { icon:'◈', label:'Tasa de error', sub:'Validados sin errores' }
+    ],
+    indicators: [
+      { name:'Control interno de calidad', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos. Alta prioridad regulatoria. Incorporar resultados de cartas de control.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'PEEC', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos. Evaluación externa de calidad. Cargar resultados por ronda.'}], dims:[], chartLabels:['R1','R2','R3','R4'], chartData:[null,null,null,null], chartMeta:null },
+      { name:'Validados sin errores', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'Muestras no conformes', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos. Registrar por tipo de no conformidad y área de origen.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null }
+    ]
+  },
+  gestion: {
+    name: 'Sistema de gestión', icon: '⬢', status: 'none',
+    counts: { ok:0, warn:0, bad:0, none:4 },
+    progress: 0,
+    rec: [
+      { icon:'▬', label:'Barras de avance', sub:'NC cerradas vs. abiertas' },
+      { icon:'╌', label:'Acumulado ACC', sub:'Implementadas vs. planificadas' },
+      { icon:'◉', label:'Estado documental', sub:'Vigentes vs. vencidos' }
+    ],
+    indicators: [
+      { name:'NC cerradas', meta:'90%', criterio:'Criterio ≥', frec:'Mensual', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos. Vincular con el registro de no conformidades del SGC.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:90 },
+      { name:'Documentos vigentes', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos. Definir meta y criterio de cumplimiento.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'Reducción de reincidencias', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos. Indicador clave de efectividad de acciones correctivas.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'ACC implementadas vs. planificadas', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null }
+    ]
+  },
+  rrhh: {
+    name: 'Recursos humanos', icon: '◑', status: 'none',
+    counts: { ok:0, warn:0, bad:0, none:5 },
+    progress: 0,
+    rec: [
+      { icon:'▬', label:'Avance del plan', sub:'Capacitaciones realizadas vs. plan' },
+      { icon:'◈', label:'Radar competencias', sub:'Cobertura por perfil de puesto' },
+      { icon:'╌', label:'Horas per cápita', sub:'Acumulado mensual' }
+    ],
+    indicators: [
+      { name:'Personal alcanzado por plan anual', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'Satisfacción de capacitaciones', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'Competencias cubiertas', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'Cumplimiento cronograma capacitación', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null },
+      { name:'Horas de capacitación per cápita', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null }
+    ]
+  },
+  direccion: {
+    name: 'Dirección', icon: '△', status: 'none',
+    counts: { ok:0, warn:0, bad:0, none:2 },
+    progress: 0,
+    rec: [
+      { icon:'╌', label:'Línea de crecimiento', sub:'Pacientes mes a mes + año ant.' },
+      { icon:'▬', label:'Barras de cumplimiento', sub:'Requisitos por cláusula ISO' }
+    ],
+    indicators: [
+      { name:'Crecimiento de la actividad', meta:'—', criterio:'Sin criterio definido', frec:'Mensual', ultimo:'1.365 pac.', acum:'1.369 prom.', status:'none', trend:'dn', obs:[{color:'var(--warn-mid)',text:'Meta no definida. Datos parciales: enero 1.373 / febrero 1.365 pacientes. Tendencia levemente descendente.'},{color:'var(--none-mid)',text:'Establecer línea base y objetivo de crecimiento para habilitar evaluación.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[1373,1365,null,null,null,null], chartMeta:null },
+      { name:'Cumplimiento de requisitos', meta:'—', criterio:'—', frec:'—', ultimo:'—', acum:'—', status:'none', trend:'eq', obs:[{color:'var(--none-mid)',text:'Sin datos disponibles.'}], dims:[], chartLabels:['Ene','Feb','Mar','Abr','May','Jun'], chartData:[null,null,null,null,null,null], chartMeta:null }
+    ]
+  }
+};
+
+// ═══════════ ESTADO ═══════════
+let currentCat = null;
+let currentInd = null;
+let chartInst = null;
+
+// ═══════════ HELPERS ═══════════
+const statusClass = s => s==='ok'?'ok':s==='warn'?'warn':s==='bad'?'bad':'none';
+const statusLabel = s => s==='ok'?'Cumple':s==='warn'?'En riesgo':s==='bad'?'Fuera de meta':'Sin datos';
+const pillClass = s => 'pill pill-'+statusClass(s);
+const trendSymbol = t => t==='up'?'▲':t==='dn'?'▼':'—';
+const trendClass = t => 'trend '+(t==='up'?'up':t==='dn'?'dn':'eq');
+const statusColor = s => s==='ok'?'var(--ok-mid)':s==='warn'?'var(--warn-mid)':s==='bad'?'var(--bad-mid)':'var(--none-mid)';
+
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  updateBreadcrumb(n);
+}
+
+function updateBreadcrumb(n) {
+  const bc1 = document.getElementById('bc1');
+  const bc2 = document.getElementById('bc2');
+  const bc3 = document.getElementById('bc3');
+  const sep1 = document.getElementById('bcsep1');
+  const sep2 = document.getElementById('bcsep2');
+
+  bc1.className = 'bc-item'+(n===1?' active':' clickable');
+  if(n===1){ bc2.style.display='none'; sep1.style.display='none'; bc3.style.display='none'; sep2.style.display='none'; return; }
+
+  sep1.style.display='inline';
+  bc2.style.display='inline';
+  bc2.textContent = currentCat ? DATA[currentCat].name : '';
+  bc2.className = 'bc-item'+(n===2?' active':' clickable');
+
+  if(n===2){ bc3.style.display='none'; sep2.style.display='none'; return; }
+
+  sep2.style.display='inline';
+  bc3.style.display='inline';
+  bc3.textContent = currentInd !== null ? DATA[currentCat].indicators[currentInd].name : '';
+  bc3.className = 'bc-item active';
+}
+
+// ═══════════ NIVEL 1 ═══════════
+function renderCatGrid() {
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = '';
+  Object.entries(DATA).forEach(([key, cat]) => {
+    const card = document.createElement('div');
+    card.className = 'cat-card '+statusClass(cat.status);
+    const pills = [];
+    if(cat.counts.ok) pills.push(`<span class="pill pill-ok">${cat.counts.ok} cumple${cat.counts.ok>1?'n':''}</span>`);
+    if(cat.counts.warn) pills.push(`<span class="pill pill-warn">${cat.counts.warn} riesgo</span>`);
+    if(cat.counts.bad) pills.push(`<span class="pill pill-bad">${cat.counts.bad} fuera</span>`);
+    if(cat.counts.none) pills.push(`<span class="pill pill-none">${cat.counts.none} s/datos</span>`);
+    const total = cat.indicators.length;
+    const fillColor = cat.status==='ok'?'var(--ok-mid)':cat.status==='warn'?'var(--warn-mid)':cat.status==='bad'?'var(--bad-mid)':'var(--none-mid)';
+
+    card.innerHTML = `
+      <div class="cat-icon-row">
+        <span class="cat-icon">${cat.icon}</span>
+        <span class="status-dot dot-${statusClass(cat.status)}"></span>
+      </div>
+      <div class="cat-name">${cat.name}</div>
+      <div class="cat-counts">${pills.join('')}</div>
+      <div class="cat-progress"><div class="cat-progress-fill" style="width:${cat.progress}%;background:${fillColor}"></div></div>
+      <div class="cat-footer">
+        <span class="cat-n">${total} indicador${total>1?'es':''}</span>
+        <span class="cat-arrow">→</span>
+      </div>`;
+    card.onclick = () => drillCat(key);
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════ NIVEL 2 ═══════════
+function drillCat(key) {
+  currentCat = key;
+  const cat = DATA[key];
+  document.getElementById('cat-title2').textContent = cat.name;
+  const badge = document.getElementById('cat-badge2');
+  badge.textContent = statusLabel(cat.status);
+  badge.className = 'section-badge '+pillClass(cat.status);
+  document.getElementById('back-cat-lbl').textContent = cat.name;
+
+  const grid = document.getElementById('ind-grid');
+  grid.innerHTML = '';
+  cat.indicators.forEach((ind, i) => {
+    const card = document.createElement('div');
+    card.className = 'ind-card '+statusClass(ind.status);
+    card.innerHTML = `
+      <div class="ind-name">${ind.name}</div>
+      <div class="ind-data-row"><span class="ind-lbl">Meta</span><span class="ind-val">${ind.meta}</span></div>
+      <div class="ind-data-row"><span class="ind-lbl">Último</span><span class="ind-val" style="color:${statusColor(ind.status)}">${ind.ultimo}</span></div>
+      <div class="ind-data-row"><span class="ind-lbl">Acumulado</span><span class="ind-val">${ind.acum}</span></div>
+      <div class="ind-footer">
+        <span class="${trendClass(ind.trend)}">${trendSymbol(ind.trend)}</span>
+        <span class="${pillClass(ind.status)}">${statusLabel(ind.status)}</span>
+      </div>`;
+    card.onclick = () => drillInd(i);
+    grid.appendChild(card);
+  });
+
+  const recGrid = document.getElementById('rec-grid');
+  recGrid.innerHTML = '';
+  cat.rec.forEach(r => {
+    recGrid.innerHTML += `<div class="rec-item">${r.icon} ${r.label}<span>${r.sub}</span></div>`;
+  });
+
+  goTo(2);
+}
+
+// ═══════════ NIVEL 3 ═══════════
+function drillInd(idx) {
+  currentInd = idx;
+  const ind = DATA[currentCat].indicators[idx];
+
+  document.getElementById('ind-detail-name').textContent = ind.name;
+  document.getElementById('ind-detail-meta').textContent = DATA[currentCat].name + ' · ' + ind.frec;
+  document.getElementById('d-meta').textContent = ind.meta;
+  document.getElementById('d-crit').textContent = ind.criterio;
+  document.getElementById('d-ult').textContent = ind.ultimo;
+  document.getElementById('d-ult').style.color = statusColor(ind.status);
+  document.getElementById('d-est').textContent = statusLabel(ind.status);
+  document.getElementById('d-acum').textContent = ind.acum;
+  document.getElementById('d-tend').textContent = 'Tendencia ' + trendSymbol(ind.trend);
+
+  const obsList = document.getElementById('obs-list');
+  obsList.innerHTML = '';
+  ind.obs.forEach(o => {
+    obsList.innerHTML += `<div class="obs-item"><div class="obs-marker" style="background:${o.color}"></div><span>${o.text}</span></div>`;
+  });
+
+  const dimSection = document.getElementById('dim-section');
+  const dimList = document.getElementById('dim-list');
+  if(ind.dims && ind.dims.length) {
+    dimSection.style.display = 'block';
+    dimList.innerHTML = '';
+    ind.dims.forEach(d => {
+      dimList.innerHTML += `
+        <div class="dim-row">
+          <div class="dim-hd">
+            <span class="dim-name-t">${d.name}</span>
+            <span class="dim-pct" style="color:${d.trendColor}">${d.pct.toFixed(1)}% ${d.trend}</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fg" style="width:${d.pct}%;background:${d.color}"></div></div>
+        </div>`;
+    });
+  } else {
+    dimSection.style.display = 'none';
+  }
+
+  if(chartInst){ chartInst.destroy(); chartInst=null; }
+  setTimeout(() => {
+    const ctx = document.getElementById('detailChart');
+    const datasets = [{
+      label:'Resultado',
+      data: ind.chartData,
+      borderColor:'#1A1916',
+      backgroundColor:'rgba(26,25,22,0.06)',
+      fill:true,
+      tension:.35,
+      pointRadius:4,
+      pointBackgroundColor:'#1A1916',
+      borderWidth:1.5,
+      spanGaps:false
+    }];
+    if(ind.chartMeta !== null) {
+      datasets.push({
+        label:'Meta',
+        data: ind.chartLabels.map(()=>ind.chartMeta),
+        borderColor:'#D94040',
+        backgroundColor:'transparent',
+        borderDash:[4,4],
+        pointRadius:0,
+        borderWidth:1.5
+      });
+    }
+    chartInst = new Chart(ctx, {
+      type:'line',
+      data:{ labels:ind.chartLabels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y!==null?c.parsed.y.toFixed(1)+(ind.chartMeta?'%':''):'—')}} },
+        scales:{
+          x:{ ticks:{color:'#9E9D99',font:{size:11,family:"'DM Mono',monospace"}}, grid:{color:'rgba(0,0,0,0.05)'} },
+          y:{ ticks:{color:'#9E9D99',font:{size:11,family:"'DM Mono',monospace"}, callback:v=>v+(ind.chartMeta?'%':'')}, grid:{color:'rgba(0,0,0,0.05)'},
+              min: ind.chartMeta ? Math.min(80, Math.min(...ind.chartData.filter(v=>v!==null))-5||80) : undefined }
+        }
+      }
+    });
+  }, 50);
+
+  goTo(3);
+}
+
+// ═══════════ INIT ═══════════
+function init() {
+  const now = new Date();
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('period-badge').textContent = meses[now.getMonth()]+' '+now.getFullYear();
+  document.getElementById('footer-date').textContent = 'Generado '+now.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  renderCatGrid();
+}
+
+init();
+</script>
+</body>
+</html>
